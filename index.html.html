@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETH Vanity Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07070f;--card:#0e0e1c;--card2:#14142a;--border:#1e1e38;
+  --accent:#00e5a0;--accent2:#00b4ff;--danger:#ff4d6d;
+  --text:#dde3f0;--muted:#5a6080;--orange:#ff9a3c;
+  --mono:'Share Tech Mono',monospace;--sans:'Outfit',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;padding:2rem 1rem}
+.noise{position:fixed;inset:0;pointer-events:none;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");z-index:999}
+.wrap{max-width:700px;margin:0 auto}
+
+header{text-align:center;margin-bottom:2.5rem}
+h1{font-family:var(--mono);font-size:1.6rem;letter-spacing:.08em;color:#fff}
+h1 span{color:var(--accent)}
+.tagline{font-size:.85rem;color:var(--muted);margin-top:.3rem}
+.free-badge{display:inline-block;background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.3);color:var(--accent);font-size:.7rem;letter-spacing:.08em;padding:2px 10px;border-radius:20px;margin-top:.5rem}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:1rem}
+.label{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem;font-weight:500}
+
+.input-row{display:flex;align-items:center}
+.prefix-tag{font-family:var(--mono);font-size:1rem;color:var(--muted);padding:.6rem .5rem;background:var(--card2);border:1px solid var(--border);border-radius:8px 0 0 8px;border-right:none;white-space:nowrap}
+input[type=text]{flex:1;background:var(--card2);border:1px solid var(--border);color:#fff;font-family:var(--mono);font-size:1.1rem;padding:.6rem .8rem;outline:none;border-radius:0 8px 8px 0;letter-spacing:.05em;transition:border-color .2s}
+input[type=text]:focus{border-color:var(--accent)}
+input[type=text]::placeholder{color:var(--muted)}
+.char-counter{font-size:.75rem;color:var(--muted);margin-top:.4rem;text-align:right}
+.char-counter .free{color:var(--accent)}
+.char-counter .paid{color:var(--orange)}
+
+/* Quantity selector */
+.qty-row{display:flex;gap:.5rem;flex-wrap:wrap}
+.qty-btn{padding:.4rem 0;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--muted);font-family:var(--sans);font-size:.85rem;cursor:pointer;transition:all .2s;flex:1;text-align:center;position:relative}
+.qty-btn.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+.qty-btn:not(.active):hover{border-color:var(--muted)}
+.qty-btn .save{position:absolute;top:-8px;right:-4px;background:var(--orange);color:#000;font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:8px;letter-spacing:.04em}
+
+.tabs{display:flex;gap:.4rem;flex-wrap:wrap}
+.tab{padding:.4rem .9rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--sans);font-size:.8rem;cursor:pointer;transition:all .2s}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+.tab:not(.active):hover{border-color:var(--muted)}
+
+.toggle-row{display:flex;align-items:center;gap:.75rem}
+.toggle{position:relative;width:38px;height:20px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:var(--card2);border:1px solid var(--border);border-radius:20px;transition:.2s}
+.slider:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;background:var(--muted);border-radius:50%;transition:.2s}
+.toggle input:checked + .slider{background:var(--accent);border-color:var(--accent)}
+.toggle input:checked + .slider:before{transform:translateX(18px);background:#000}
+.toggle-label{font-size:.8rem;color:var(--muted)}
+
+.diff-wrap{margin-top:1rem}
+.diff-info{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-bottom:.4rem}
+.diff-bar{height:4px;background:var(--card2);border-radius:4px;overflow:hidden}
+.diff-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s;width:0%}
+.diff-est{font-size:.78rem;color:var(--muted);margin-top:.4rem}
+.diff-est span{color:var(--accent)}
+
+/* Price summary */
+.price-summary{background:rgba(255,154,60,.06);border:1px solid rgba(255,154,60,.2);border-radius:10px;padding:.9rem 1.1rem;margin-top:.75rem;display:none}
+.price-row{display:flex;justify-content:space-between;align-items:center}
+.price-label{font-size:.82rem;color:var(--muted)}
+.price-total{font-family:var(--mono);font-size:1.2rem;color:var(--orange);font-weight:600}
+.price-saving{font-size:.72rem;color:var(--accent);margin-top:.2rem;text-align:right}
+
+.btn-start{width:100%;padding:.85rem;border-radius:10px;border:none;font-family:var(--sans);font-size:1rem;font-weight:600;cursor:pointer;letter-spacing:.04em;transition:all .2s}
+.btn-start.idle{background:var(--accent);color:#000}
+.btn-start.running{background:var(--danger);color:#fff}
+.btn-start:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-start:active{transform:translateY(0)}
+
+/* Global stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-top:1rem;margin-bottom:1rem}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.9rem;text-align:center}
+.stat-val{font-family:var(--mono);font-size:1.1rem;color:var(--accent)}
+.stat-lbl{font-size:.7rem;color:var(--muted);margin-top:.2rem;letter-spacing:.06em;text-transform:uppercase}
+
+/* Per-address progress cards */
+.addr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.75rem;margin-bottom:1rem}
+.addr-progress{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem}
+.addr-progress.done{border-color:var(--accent)}
+.addr-progress.done-paid{border-color:var(--orange)}
+.addr-num{font-size:.7rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.4rem}
+.addr-status{font-family:var(--mono);font-size:.8rem;color:var(--muted);word-break:break-all;line-height:1.5}
+.addr-status .hi{color:var(--accent)}
+.addr-mini-bar{height:2px;background:var(--card2);border-radius:2px;margin-top:.6rem;overflow:hidden}
+.addr-mini-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:20%;animation:slide 1.5s linear infinite}
+.addr-mini-fill.done{animation:none;width:100%;background:var(--accent)}
+@keyframes slide{0%{transform:translateX(-200%)}100%{transform:translateX(600%)}}
+
+/* Free result */
+.result-card{background:var(--card);border:1px solid var(--accent);border-radius:12px;padding:1.25rem;position:relative}
+.result-card::before{content:'FOUND';position:absolute;top:-10px;left:14px;background:var(--accent);color:#000;font-size:.62rem;font-weight:700;letter-spacing:.12em;padding:2px 8px;border-radius:4px}
+.addr-display{font-family:var(--mono);font-size:.88rem;word-break:break-all;line-height:1.7;color:var(--muted);margin:.4rem 0}
+.addr-display .hi{color:var(--accent);font-weight:bold;text-shadow:0 0 8px rgba(0,229,160,.4)}
+.key-wrap{display:flex;align-items:center;gap:.4rem;margin-top:.6rem;flex-wrap:wrap}
+.key-val{font-family:var(--mono);font-size:.75rem;word-break:break-all;flex:1;color:var(--muted);filter:blur(5px);transition:filter .3s;line-height:1.5;min-width:0}
+.key-val.revealed{filter:none;color:var(--orange)}
+.copy-btn{padding:.3rem .6rem;border:1px solid var(--border);background:var(--card2);color:var(--muted);border-radius:6px;font-size:.72rem;cursor:pointer;white-space:nowrap;font-family:var(--sans);transition:all .2s;flex-shrink:0}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+.reveal-btn{padding:.3rem .7rem;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:6px;font-size:.72rem;cursor:pointer;font-family:var(--sans);transition:all .2s;flex-shrink:0}
+.reveal-btn:hover{background:var(--accent);color:#000}
+.warning-box{background:rgba(255,77,109,.08);border:1px solid rgba(255,77,109,.3);border-radius:8px;padding:.6rem .9rem;font-size:.75rem;color:#ff9a9a;margin-top:.6rem;line-height:1.6}
+
+/* Paywall */
+.paywall-card{background:var(--card);border:1px solid rgba(255,154,60,.4);border-radius:12px;padding:1.5rem;position:relative}
+.paywall-card::before{content:'LOCKED';position:absolute;top:-10px;left:14px;background:var(--orange);color:#000;font-size:.62rem;font-weight:700;letter-spacing:.12em;padding:2px 8px;border-radius:4px}
+.blurred-addr{font-family:var(--mono);font-size:.88rem;word-break:break-all;line-height:1.7;color:var(--muted);filter:blur(6px);user-select:none;margin:.4rem 0}
+.blurred-key{font-family:var(--mono);font-size:.75rem;word-break:break-all;line-height:1.5;color:var(--muted);filter:blur(6px);user-select:none;margin-top:.4rem}
+.paywall-overlay{margin-top:1.25rem;border-top:1px solid var(--border);padding-top:1.25rem;text-align:center}
+.paywall-title{font-size:1rem;font-weight:600;color:#fff;margin-bottom:.3rem}
+.paywall-sub{font-size:.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.6}
+.paywall-price-box{display:inline-block;background:rgba(255,154,60,.1);border:1px solid rgba(255,154,60,.35);border-radius:10px;padding:.6rem 1.4rem;margin-bottom:1rem}
+.paywall-price-box .amount{font-family:var(--mono);font-size:1.5rem;color:var(--orange);font-weight:600}
+.paywall-price-box .per{font-size:.72rem;color:var(--muted);display:block;margin-top:.1rem}
+.paywall-price-box .saving{font-size:.72rem;color:var(--accent);margin-top:.2rem}
+.paywall-steps{text-align:left;margin:.75rem 0 1rem;display:flex;flex-direction:column;gap:.5rem}
+.step{display:flex;align-items:flex-start;gap:.7rem;font-size:.8rem;color:var(--text);line-height:1.5}
+.step-num{background:rgba(255,154,60,.15);border:1px solid rgba(255,154,60,.4);color:var(--orange);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700}
+.step code{font-family:var(--mono);font-size:.78rem;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;color:#fff}
+.btn-upgrade{display:block;width:100%;padding:.8rem;border-radius:10px;border:none;background:linear-gradient(135deg,#ff9a3c,#ff6b35);color:#000;font-family:var(--sans);font-size:.95rem;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:all .2s;text-decoration:none;text-align:center}
+.btn-upgrade:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.paywall-note{font-size:.7rem;color:var(--muted);margin-top:.75rem;line-height:1.6}
+
+.footer{text-align:center;font-size:.75rem;color:var(--muted);margin-top:1.5rem;line-height:1.7}
+.dot{color:var(--border)}
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="wrap">
+
+<header>
+  <div style="margin-bottom:.5rem">
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+      <polygon points="20,3 35,11.5 35,28.5 20,37 5,28.5 5,11.5" fill="#07070f" stroke="#00e5a0" stroke-width="1.5"/>
+      <text x="20" y="26" text-anchor="middle" font-family="Share Tech Mono" font-size="14" fill="#00e5a0">Ξ</text>
+    </svg>
+  </div>
+  <h1>vanity<span>.eth</span></h1>
+  <p class="tagline">Custom Ethereum addresses · generated in your browser · zero data sent</p>
+  <span class="free-badge">FREE up to 4 characters</span>
+</header>
+
+<div class="card">
+  <div class="label">Pattern</div>
+  <div class="input-row">
+    <span class="prefix-tag" id="prefixTag">0x</span>
+    <input type="text" id="patternInput" placeholder="DEAD, BEEF, 1337..." maxlength="10" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="char-counter" id="charCounter"></div>
+
+  <div style="margin-top:1.2rem">
+    <div class="label">Quantity</div>
+    <div class="qty-row" id="qtyRow">
+      <button class="qty-btn active" data-qty="1">1</button>
+      <button class="qty-btn" data-qty="3">3<span class="save">−17%</span></button>
+      <button class="qty-btn" data-qty="5">5<span class="save">−30%</span></button>
+      <button class="qty-btn" data-qty="10">10<span class="save">−40%</span></button>
+    </div>
+  </div>
+
+  <div style="margin-top:1.2rem">
+    <div class="label">Match mode</div>
+    <div class="tabs">
+      <button class="tab active" data-mode="prefix">Prefix</button>
+      <button class="tab" data-mode="suffix">Suffix</button>
+      <button class="tab" data-mode="anywhere">Anywhere</button>
+    </div>
+  </div>
+
+  <div style="margin-top:1rem">
+    <div class="toggle-row">
+      <label class="toggle">
+        <input type="checkbox" id="caseToggle">
+        <span class="slider"></span>
+      </label>
+      <span class="toggle-label">Case-sensitive (slower)</span>
+    </div>
+  </div>
+
+  <div class="diff-wrap" id="diffWrap" style="display:none">
+    <div class="diff-info">
+      <span>Difficulty</span>
+      <span id="diffLabel">—</span>
+    </div>
+    <div class="diff-bar"><div class="diff-fill" id="diffFill"></div></div>
+    <div class="diff-est">~<span id="diffEst">—</span> attempts per address · avg at 100k/s: <span id="diffTime">—</span></div>
+  </div>
+
+  <div class="price-summary" id="priceSummary">
+    <div class="price-row">
+      <span class="price-label" id="priceLabel">Price</span>
+      <span class="price-total" id="priceTotal">—</span>
+    </div>
+    <div class="price-saving" id="priceSaving"></div>
+  </div>
+</div>
+
+<button class="btn-start idle" id="startBtn">⬡ Generate Addresses</button>
+
+<div class="stats" id="statsRow" style="display:none">
+  <div class="stat"><div class="stat-val" id="statSpeed">0</div><div class="stat-lbl">addr/sec</div></div>
+  <div class="stat"><div class="stat-val" id="statDone">0/1</div><div class="stat-lbl">completed</div></div>
+  <div class="stat"><div class="stat-val" id="statTime">0:00</div><div class="stat-lbl">elapsed</div></div>
+</div>
+
+<div class="addr-grid" id="addrGrid"></div>
+<div id="resultArea"></div>
+
+<div class="footer">
+  <span class="dot">▪</span> Generation runs locally in your browser · private keys never leave your device <span class="dot">▪</span>
+</div>
+</div>
+
+<script>
+const FREE_LIMIT = 4;
+const UPGRADE_LINK = 'https://t.me/ethvanitygenerator_bot';
+
+const BASE_PRICES = {
+  prefix:  { 5:5,  6:30,  7:180, 8:700  },
+  suffix:  { 5:5,  6:30,  7:180, 8:700  },
+  anywhere:{ 5:2,  6:12,  7:60,  8:250  }
+};
+const QTY_MULT = { 1:1, 3:2.5, 5:3.5, 10:6 };
+
+function getUnitPrice(n) {
+  return (BASE_PRICES[mode] || BASE_PRICES.prefix)[n] || 700;
+}
+function calcTotal(n, qty) {
+  const unit = getUnitPrice(n);
+  const total = unit * QTY_MULT[qty];
+  return { unit, total: Math.round(total) };
+}
+
+const patInput = document.getElementById('patternInput');
+const startBtn = document.getElementById('startBtn');
+const statsRow = document.getElementById('statsRow');
+const resultArea = document.getElementById('resultArea');
+const addrGrid = document.getElementById('addrGrid');
+const diffWrap = document.getElementById('diffWrap');
+const prefixTag = document.getElementById('prefixTag');
+const charCounter = document.getElementById('charCounter');
+const priceSummary = document.getElementById('priceSummary');
+
+let mode = 'prefix';
+let qty = 1;
+let workers = [];
+let running = false;
+let startTime = 0;
+let timerInterval = null;
+let totalAttempts = 0;
+let doneCount = 0;
+let results = [];
+let lastSpeed = 0;
+let lastAttempts = 0;
+let lastSpeedTime = Date.now();
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    mode = tab.dataset.mode;
+    prefixTag.textContent = mode === 'suffix' ? '…' : '0x';
+    updateUI();
+  });
+});
+
+document.querySelectorAll('.qty-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.qty-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    qty = parseInt(btn.dataset.qty);
+    updateUI();
+  });
+});
+
+patInput.addEventListener('input', updateUI);
+document.getElementById('caseToggle').addEventListener('change', updateUI);
+
+function updateUI() {
+  const pat = patInput.value.trim();
+  const n = pat.length;
+  if (n === 0) { charCounter.textContent=''; diffWrap.style.display='none'; priceSummary.style.display='none'; return; }
+
+  const isPaid = n > FREE_LIMIT;
+
+  if (!isPaid) {
+    charCounter.innerHTML = `<span class="free">${n}/${FREE_LIMIT} · free tier</span>`;
+    priceSummary.style.display = 'none';
+  } else {
+    const { unit, total } = calcTotal(n, qty);
+    const saving = qty > 1 ? Math.round((1 - QTY_MULT[qty]/qty) * 100) : 0;
+    charCounter.innerHTML = `<span class="paid">${n} chars · paid · $${unit} each</span>`;
+    priceSummary.style.display = 'block';
+    document.getElementById('priceLabel').textContent = qty === 1 ? '1 address' : `${qty} addresses`;
+    document.getElementById('priceTotal').textContent = `$${total}`;
+    document.getElementById('priceSaving').textContent = saving > 0 ? `Save ${saving}% vs buying separately` : '';
+  }
+
+  diffWrap.style.display = 'block';
+  const attempts = Math.pow(16, n);
+  document.getElementById('diffFill').style.width = Math.min(100, (n/10)*100) + '%';
+  const labels = ['','','','','Easy','Medium','Hard','Very Hard','Extreme'];
+  document.getElementById('diffLabel').textContent = (labels[n]||'Insane') + ` (${n} chars)`;
+  document.getElementById('diffEst').textContent = attempts.toLocaleString();
+  const secs = attempts / 100000;
+  document.getElementById('diffTime').textContent =
+    secs < 60 ? '< 1 min' : secs < 3600 ? Math.round(secs/60)+' min' : secs < 86400 ? Math.round(secs/3600)+' hr' : Math.round(secs/86400)+' days';
+
+  startBtn.textContent = qty === 1 ? '⬡ Generate Address' : `⬡ Generate ${qty} Addresses`;
+}
+
+function fmtNum(n) { return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); }
+function fmtTime(ms) { const s=Math.floor(ms/1000),m=Math.floor(s/60); return m+':'+String(s%60).padStart(2,'0'); }
+
+function highlightAddr(address, pattern, matchMode, cs) {
+  const ca = cs?address:address.toLowerCase();
+  const cp = cs?pattern:pattern.toLowerCase();
+  let idx=-1;
+  if(matchMode==='prefix'&&ca.slice(2).startsWith(cp)) idx=2;
+  else if(matchMode==='suffix'){const i=ca.lastIndexOf(cp);if(i!==-1)idx=i;}
+  else{const i=ca.indexOf(cp,2);if(i!==-1)idx=i;}
+  if(idx===-1)return address;
+  return address.slice(0,idx)+`<span class="hi">${address.slice(idx,idx+pattern.length)}</span>`+address.slice(idx+pattern.length);
+}
+
+function buildProgressCard(i, total) {
+  const div = document.createElement('div');
+  div.className = 'addr-progress';
+  div.id = `pcard-${i}`;
+  div.innerHTML = `
+    <div class="addr-num">Address #${i+1} ${total>1?'of '+total:''}</div>
+    <div class="addr-status" id="pstatus-${i}">Searching…</div>
+    <div class="addr-mini-bar"><div class="addr-mini-fill" id="pfill-${i}"></div></div>`;
+  return div;
+}
+
+function markCardDone(i, address, pattern, matchMode, cs, isPaid) {
+  const card = document.getElementById(`pcard-${i}`);
+  card.classList.add(isPaid ? 'done-paid' : 'done');
+  const hl = highlightAddr(address, pattern, matchMode, cs);
+  document.getElementById(`pstatus-${i}`).innerHTML = isPaid ? `<span style="color:var(--orange)">🔒 ${address.slice(0,10)}…${address.slice(-6)}</span>` : hl;
+  const fill = document.getElementById(`pfill-${i}`);
+  fill.className = 'addr-mini-fill done';
+  if(isPaid) fill.style.background = 'var(--orange)';
+}
+
+const workerCode = `
+self.onmessage = function(e) {
+  importScripts('https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js');
+  const { pattern, matchMode, caseSensitive, idx } = e.data;
+  const cp = caseSensitive ? pattern : pattern.toLowerCase();
+  let attempts = 0;
+  const buf = new Uint8Array(32);
+  while (true) {
+    self.crypto.getRandomValues(buf);
+    const privKey = '0x' + Array.from(buf).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const wallet = new ethers.Wallet(privKey);
+    const address = wallet.address;
+    const ca = caseSensitive ? address : address.toLowerCase();
+    attempts++;
+    let match = false;
+    if (matchMode==='prefix') match = ca.slice(2).startsWith(cp);
+    else if (matchMode==='suffix') match = ca.endsWith(cp);
+    else match = ca.indexOf(cp, 2) !== -1;
+    if (match) {
+      self.postMessage({ type:'found', address, privateKey:wallet.privateKey, attempts, idx });
+      return;
+    }
+    if (attempts % 500 === 0) self.postMessage({ type:'progress', attempts, idx });
+  }
+};
+`;
+
+function startGeneration() {
+  const pattern = patInput.value.trim();
+  if (!pattern) { patInput.focus(); return; }
+  if (!/^[0-9a-fA-F]+$/i.test(pattern)) {
+    patInput.style.borderColor='var(--danger)';
+    setTimeout(()=>patInput.style.borderColor='',800); return;
+  }
+
+  const isPaid = pattern.length > FREE_LIMIT;
+  const cs = document.getElementById('caseToggle').checked;
+  const currentMode = mode;
+  const currentQty = qty;
+
+  running = true; startTime = Date.now();
+  totalAttempts = 0; doneCount = 0; results = new Array(currentQty).fill(null);
+  lastAttempts = 0; lastSpeedTime = Date.now();
+
+  startBtn.textContent = '◼ Stop'; startBtn.classList.replace('idle','running');
+  statsRow.style.display = 'grid';
+  document.getElementById('statDone').textContent = `0/${currentQty}`;
+  addrGrid.innerHTML = ''; resultArea.innerHTML = '';
+  patInput.disabled = true;
+  document.querySelectorAll('.tab,.qty-btn').forEach(t=>t.disabled=true);
+
+  timerInterval = setInterval(()=>{
+    document.getElementById('statTime').textContent = fmtTime(Date.now()-startTime);
+    const now = Date.now();
+    const elapsed = (now-lastSpeedTime)/1000;
+    if(elapsed>1){
+      const spd = Math.round((totalAttempts-lastAttempts)/elapsed);
+      document.getElementById('statSpeed').textContent = fmtNum(spd);
+      lastAttempts = totalAttempts; lastSpeedTime = now;
+    }
+  }, 500);
+
+  // Build progress cards
+  for (let i=0; i<currentQty; i++) addrGrid.appendChild(buildProgressCard(i, currentQty));
+
+  // Show paid warning banner
+  if (isPaid) {
+    const { total } = calcTotal(pattern.length, currentQty);
+    resultArea.innerHTML = `<div style="background:rgba(255,154,60,.08);border:1px solid rgba(255,154,60,.35);border-radius:10px;padding:.9rem 1.2rem;margin-bottom:1rem;font-size:.82rem;color:var(--orange);line-height:1.7">
+      🔒 <strong>Paid tier · ${currentQty} address${currentQty>1?'es':''} · $${total} total</strong> — searching now. When found, go to bot to unlock. <a href="${UPGRADE_LINK}" target="_blank" style="color:var(--orange);text-decoration:underline">Open bot →</a>
+    </div>`;
+  }
+
+  const blob = new Blob([workerCode], {type:'application/javascript'});
+  const blobUrl = URL.createObjectURL(blob);
+  workers = [];
+
+  for (let i=0; i<currentQty; i++) {
+    const w = new Worker(blobUrl);
+    workers.push(w);
+
+    w.onmessage = function(e) {
+      const { type, attempts, idx } = e.data;
+      totalAttempts += attempts - (workers[idx]._lastAttempts||0);
+      workers[idx]._lastAttempts = attempts;
+
+      if (type === 'progress') return;
+
+      if (type === 'found') {
+        doneCount++;
+        results[idx] = { address: e.data.address, privateKey: e.data.privateKey, attempts };
+        markCardDone(idx, e.data.address, pattern, currentMode, cs, isPaid);
+        document.getElementById('statDone').textContent = `${doneCount}/${currentQty}`;
+        w.terminate(); workers[idx] = null;
+
+        if (doneCount === currentQty) {
+          finishGeneration(pattern, currentMode, cs, isPaid, currentQty);
+        }
+      }
+    };
+
+    w.postMessage({ pattern, matchMode: currentMode, caseSensitive: cs, idx: i });
+  }
+  URL.revokeObjectURL(blobUrl);
+}
+
+function finishGeneration(pattern, matchMode, cs, isPaid, currentQty) {
+  stopGeneration();
+  const n = pattern.length;
+
+  if (!isPaid) {
+    // Show all free results
+    let html = '<div style="display:flex;flex-direction:column;gap:.75rem;margin-top:.5rem">';
+    results.forEach((r, i) => {
+      const hl = highlightAddr(r.address, pattern, matchMode, cs);
+      html += `
+        <div class="result-card">
+          ${currentQty>1?`<div style="font-size:.7rem;color:var(--muted);margin-bottom:.5rem;letter-spacing:.08em">ADDRESS #${i+1}</div>`:''}
+          <div class="addr-display">${hl}</div>
+          <button class="copy-btn" onclick="copyText('${r.address}',this)">Copy address</button>
+          <div style="margin-top:.6rem">
+            <div class="key-wrap">
+              <div class="key-val" id="kv-${i}">${r.privateKey}</div>
+              <button class="reveal-btn" onclick="toggleReveal(${i})">Reveal</button>
+              <button class="copy-btn" onclick="copyText('${r.privateKey}',this)">Copy key</button>
+            </div>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+    resultArea.innerHTML = html;
+  } else {
+    // Paywall for paid results
+    const { total } = calcTotal(n, currentQty);
+    const unitPrice = getUnitPrice(n);
+    const saving = currentQty > 1 ? Math.round((1-QTY_MULT[currentQty]/currentQty)*100) : 0;
+
+    let html = `<div class="paywall-card">
+      <div class="label" style="margin-bottom:.5rem">Your ${currentQty} address${currentQty>1?'es':''} (blurred)</div>`;
+
+    results.forEach((r, i) => {
+      html += `
+        <div style="margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)">
+          ${currentQty>1?`<div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem;letter-spacing:.08em">ADDRESS #${i+1}</div>`:''}
+          <div class="blurred-addr">${r.address}</div>
+          <div class="blurred-key">${r.privateKey}</div>
+        </div>`;
+    });
+
+    html += `<div class="paywall-overlay">
+        <div class="paywall-title">🔐 ${currentQty} address${currentQty>1?'es':''} found and ready</div>
+        <div class="paywall-sub">Перейди в Telegram бот и оплати — получишь все адреса и ключи.</div>
+        <div class="paywall-price-box">
+          <span class="amount">$${total}</span>
+          <span class="per">${currentQty} address${currentQty>1?'es':''} · $${unitPrice} each</span>
+          ${saving>0?`<div class="saving">Ты экономишь ${saving}% vs по одному</div>`:''}
+        </div>
+        <div class="paywall-steps">
+          <div class="step"><span class="step-num">1</span><span>Нажми кнопку ниже → откроется бот</span></div>
+          <div class="step"><span class="step-num">2</span><span>Напиши боту: паттерн <code>${pattern}</code>, кол-во: <code>${currentQty}</code></span></div>
+          <div class="step"><span class="step-num">3</span><span>Оплати <strong>$${total}</strong> в ETH или USDT</span></div>
+          <div class="step"><span class="step-num">4</span><span>Получи все адреса и ключи в боте</span></div>
+        </div>
+        <a class="btn-upgrade" href="${UPGRADE_LINK}" target="_blank">✈ Перейти в Telegram бот</a>
+        <div class="paywall-note">Приватные ключи генерируются один раз и нигде не хранятся · оплата в ETH / USDT</div>
+      </div>
+    </div>`;
+
+    resultArea.innerHTML = html;
+  }
+}
+
+function stopGeneration() {
+  workers.forEach(w=>w&&w.terminate()); workers=[];
+  clearInterval(timerInterval);
+  running=false;
+  startBtn.textContent=qty===1?'⬡ Generate Address':`⬡ Generate ${qty} Addresses`;
+  startBtn.classList.replace('running','idle');
+  patInput.disabled=false;
+  document.querySelectorAll('.tab,.qty-btn').forEach(t=>t.disabled=false);
+}
+
+function toggleReveal(i) {
+  const kv=document.getElementById(`kv-${i}`);
+  kv.classList.toggle('revealed');
+  kv.nextElementSibling.textContent=kv.classList.contains('revealed')?'Hide':'Reveal';
+}
+function copyText(text,btn){
+  navigator.clipboard.writeText(text).then(()=>{
+    const o=btn.textContent; btn.textContent='✓ Copied';
+    setTimeout(()=>btn.textContent=o,1500);
+  });
+}
+
+startBtn.addEventListener('click',()=>running?stopGeneration():startGeneration());
+patInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!running)startGeneration();});
+</script>
+</body>
+</html>
