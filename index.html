@@ -35,7 +35,6 @@ input[type=text]::placeholder{color:var(--muted)}
 .char-counter .free{color:var(--accent)}
 .char-counter .paid{color:var(--orange)}
 
-/* Quantity selector */
 .qty-row{display:flex;gap:.5rem;flex-wrap:wrap}
 .qty-btn{padding:.4rem 0;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--muted);font-family:var(--sans);font-size:.85rem;cursor:pointer;transition:all .2s;flex:1;text-align:center;position:relative}
 .qty-btn.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
@@ -63,7 +62,6 @@ input[type=text]::placeholder{color:var(--muted)}
 .diff-est{font-size:.78rem;color:var(--muted);margin-top:.4rem}
 .diff-est span{color:var(--accent)}
 
-/* Price summary */
 .price-summary{background:rgba(255,154,60,.06);border:1px solid rgba(255,154,60,.2);border-radius:10px;padding:.9rem 1.1rem;margin-top:.75rem;display:none}
 .price-row{display:flex;justify-content:space-between;align-items:center}
 .price-label{font-size:.82rem;color:var(--muted)}
@@ -76,13 +74,11 @@ input[type=text]::placeholder{color:var(--muted)}
 .btn-start:hover{filter:brightness(1.1);transform:translateY(-1px)}
 .btn-start:active{transform:translateY(0)}
 
-/* Global stats */
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-top:1rem;margin-bottom:1rem}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.9rem;text-align:center}
 .stat-val{font-family:var(--mono);font-size:1.1rem;color:var(--accent)}
 .stat-lbl{font-size:.7rem;color:var(--muted);margin-top:.2rem;letter-spacing:.06em;text-transform:uppercase}
 
-/* Per-address progress cards */
 .addr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.75rem;margin-bottom:1rem}
 .addr-progress{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem}
 .addr-progress.done{border-color:var(--accent)}
@@ -95,7 +91,6 @@ input[type=text]::placeholder{color:var(--muted)}
 .addr-mini-fill.done{animation:none;width:100%;background:var(--accent)}
 @keyframes slide{0%{transform:translateX(-200%)}100%{transform:translateX(600%)}}
 
-/* Free result */
 .result-card{background:var(--card);border:1px solid var(--accent);border-radius:12px;padding:1.25rem;position:relative}
 .result-card::before{content:'FOUND';position:absolute;top:-10px;left:14px;background:var(--accent);color:#000;font-size:.62rem;font-weight:700;letter-spacing:.12em;padding:2px 8px;border-radius:4px}
 .addr-display{font-family:var(--mono);font-size:.88rem;word-break:break-all;line-height:1.7;color:var(--muted);margin:.4rem 0}
@@ -109,7 +104,6 @@ input[type=text]::placeholder{color:var(--muted)}
 .reveal-btn:hover{background:var(--accent);color:#000}
 .warning-box{background:rgba(255,77,109,.08);border:1px solid rgba(255,77,109,.3);border-radius:8px;padding:.6rem .9rem;font-size:.75rem;color:#ff9a9a;margin-top:.6rem;line-height:1.6}
 
-/* Paywall */
 .paywall-card{background:var(--card);border:1px solid rgba(255,154,60,.4);border-radius:12px;padding:1.5rem;position:relative}
 .paywall-card::before{content:'LOCKED';position:absolute;top:-10px;left:14px;background:var(--orange);color:#000;font-size:.62rem;font-weight:700;letter-spacing:.12em;padding:2px 8px;border-radius:4px}
 .blurred-addr{font-family:var(--mono);font-size:.88rem;word-break:break-all;line-height:1.7;color:var(--muted);filter:blur(6px);user-select:none;margin:.4rem 0}
@@ -222,7 +216,9 @@ input[type=text]::placeholder{color:var(--muted)}
 
 <script>
 const FREE_LIMIT = 4;
-const UPGRADE_LINK = 'https://t.me/ethvanitygenerator_bot';
+// ===== ЕДИНСТВЕННОЕ МЕСТО ГДЕ МЕНЯТЬ USERNAME БОТА =====
+const BOT_USERNAME = 'ethvanitygenerator_bot';
+// =======================================================
 
 const BASE_PRICES = {
   prefix:  { 5:5,  6:30,  7:180, 8:700  },
@@ -230,6 +226,10 @@ const BASE_PRICES = {
   anywhere:{ 5:2,  6:12,  7:60,  8:250  }
 };
 const QTY_MULT = { 1:1, 3:2.5, 5:3.5, 10:6 };
+
+function getBotLink(pattern, matchMode, currentQty) {
+  return `https://t.me/${BOT_USERNAME}?start=${pattern}_${matchMode}_${currentQty}`;
+}
 
 function getUnitPrice(n) {
   return (BASE_PRICES[mode] || BASE_PRICES.prefix)[n] || 700;
@@ -415,14 +415,13 @@ function startGeneration() {
     }
   }, 500);
 
-  // Build progress cards
   for (let i=0; i<currentQty; i++) addrGrid.appendChild(buildProgressCard(i, currentQty));
 
-  // Show paid warning banner
   if (isPaid) {
     const { total } = calcTotal(pattern.length, currentQty);
+    // ↓ Баннер во время генерации — ссылка уже с deep link
     resultArea.innerHTML = `<div style="background:rgba(255,154,60,.08);border:1px solid rgba(255,154,60,.35);border-radius:10px;padding:.9rem 1.2rem;margin-bottom:1rem;font-size:.82rem;color:var(--orange);line-height:1.7">
-      🔒 <strong>Paid tier · ${currentQty} address${currentQty>1?'es':''} · $${total} total</strong> — searching now. When found, go to bot to unlock. <a href="${UPGRADE_LINK}" target="_blank" style="color:var(--orange);text-decoration:underline">Open bot →</a>
+      🔒 <strong>Paid tier · ${currentQty} address${currentQty>1?'es':''} · $${total} total</strong> — searching now. When found, go to bot to unlock. <a href="${getBotLink(pattern, currentMode, currentQty)}" target="_blank" style="color:var(--orange);text-decoration:underline">Open bot →</a>
     </div>`;
   }
 
@@ -464,7 +463,6 @@ function finishGeneration(pattern, matchMode, cs, isPaid, currentQty) {
   const n = pattern.length;
 
   if (!isPaid) {
-    // Show all free results
     let html = '<div style="display:flex;flex-direction:column;gap:.75rem;margin-top:.5rem">';
     results.forEach((r, i) => {
       const hl = highlightAddr(r.address, pattern, matchMode, cs);
@@ -485,10 +483,12 @@ function finishGeneration(pattern, matchMode, cs, isPaid, currentQty) {
     html += '</div>';
     resultArea.innerHTML = html;
   } else {
-    // Paywall for paid results
     const { total } = calcTotal(n, currentQty);
     const unitPrice = getUnitPrice(n);
     const saving = currentQty > 1 ? Math.round((1-QTY_MULT[currentQty]/currentQty)*100) : 0;
+
+    // ↓ Deep link: передаём pattern_mode_qty боту
+    const botLink = getBotLink(pattern, matchMode, currentQty);
 
     let html = `<div class="paywall-card">
       <div class="label" style="margin-bottom:.5rem">Your ${currentQty} address${currentQty>1?'es':''} (blurred)</div>`;
@@ -511,12 +511,12 @@ function finishGeneration(pattern, matchMode, cs, isPaid, currentQty) {
           ${saving>0?`<div class="saving">Ты экономишь ${saving}% vs по одному</div>`:''}
         </div>
         <div class="paywall-steps">
-          <div class="step"><span class="step-num">1</span><span>Нажми кнопку ниже → откроется бот</span></div>
-          <div class="step"><span class="step-num">2</span><span>Напиши боту: паттерн <code>${pattern}</code>, кол-во: <code>${currentQty}</code></span></div>
-          <div class="step"><span class="step-num">3</span><span>Оплати <strong>$${total}</strong> в ETH или USDT</span></div>
-          <div class="step"><span class="step-num">4</span><span>Получи все адреса и ключи в боте</span></div>
+          <div class="step"><span class="step-num">1</span><span>Нажми кнопку ниже → откроется бот с твоим заказом</span></div>
+          <div class="step"><span class="step-num">2</span><span>Проверь данные: паттерн <code>${pattern}</code>, кол-во: <code>${currentQty}</code></span></div>
+          <div class="step"><span class="step-num">3</span><span>Оплати <strong>$${total}</strong> в ETH, USDT, BTC или TON</span></div>
+          <div class="step"><span class="step-num">4</span><span>Получи адреса и ключи прямо в боте</span></div>
         </div>
-        <a class="btn-upgrade" href="${UPGRADE_LINK}" target="_blank">✈ Перейти в Telegram бот</a>
+        <a class="btn-upgrade" href="${botLink}" target="_blank">✈ Перейти в Telegram бот</a>
         <div class="paywall-note">Приватные ключи генерируются один раз и нигде не хранятся · оплата в ETH / USDT</div>
       </div>
     </div>`;
