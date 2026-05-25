@@ -353,6 +353,9 @@ function markCardDone(i, address, pattern, matchMode, cs, isPaid) {
   if(isPaid) fill.style.background = 'var(--orange)';
 }
 
+// Number of parallel workers per address slot (uses all CPU cores)
+const THREADS_PER_ADDR = Math.max(2, (navigator.hardwareConcurrency || 4));
+
 const workerCode = `
 self.onmessage = function(e) {
   importScripts('https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js');
@@ -428,32 +431,43 @@ function startGeneration() {
   const blob = new Blob([workerCode], {type:'application/javascript'});
   const blobUrl = URL.createObjectURL(blob);
   workers = [];
+  const addrFound = new Array(currentQty).fill(false);
+  const addrAttempts = new Array(currentQty).fill(0);
 
   for (let i=0; i<currentQty; i++) {
-    const w = new Worker(blobUrl);
-    workers.push(w);
+    workers[i] = [];
+    for (let t=0; t<THREADS_PER_ADDR; t++) {
+      const w = new Worker(blobUrl);
+      workers[i].push(w);
 
-    w.onmessage = function(e) {
-      const { type, attempts, idx } = e.data;
-      totalAttempts += attempts - (workers[idx]._lastAttempts||0);
-      workers[idx]._lastAttempts = attempts;
+      w.onmessage = function(e) {
+        const { type, attempts, idx } = e.data;
+        if (addrFound[idx]) return;
 
-      if (type === 'progress') return;
-
-      if (type === 'found') {
-        doneCount++;
-        results[idx] = { address: e.data.address, privateKey: e.data.privateKey, attempts };
-        markCardDone(idx, e.data.address, pattern, currentMode, cs, isPaid);
-        document.getElementById('statDone').textContent = `${doneCount}/${currentQty}`;
-        w.terminate(); workers[idx] = null;
-
-        if (doneCount === currentQty) {
-          finishGeneration(pattern, currentMode, cs, isPaid, currentQty);
+        if (type === 'progress') {
+          addrAttempts[idx] += attempts;
+          totalAttempts = addrAttempts.reduce((a,b)=>a+b,0);
+          return;
         }
-      }
-    };
 
-    w.postMessage({ pattern, matchMode: currentMode, caseSensitive: cs, idx: i });
+        if (type === 'found') {
+          addrFound[idx] = true;
+          workers[idx].forEach(tw => { try { tw.terminate(); } catch(e){} });
+          workers[idx] = [];
+
+          doneCount++;
+          results[idx] = { address: e.data.address, privateKey: e.data.privateKey, attempts };
+          markCardDone(idx, e.data.address, pattern, currentMode, cs, isPaid);
+          document.getElementById('statDone').textContent = `${doneCount}/${currentQty}`;
+
+          if (doneCount === currentQty) {
+            finishGeneration(pattern, currentMode, cs, isPaid, currentQty);
+          }
+        }
+      };
+
+      w.postMessage({ pattern, matchMode: currentMode, caseSensitive: cs, idx: i });
+    }
   }
   URL.revokeObjectURL(blobUrl);
 }
@@ -526,7 +540,7 @@ function finishGeneration(pattern, matchMode, cs, isPaid, currentQty) {
 }
 
 function stopGeneration() {
-  workers.forEach(w=>w&&w.terminate()); workers=[];
+  workers.forEach(arr=>Array.isArray(arr)?arr.forEach(w=>{try{w&&w.terminate()}catch(e){}}):(arr&&arr.terminate())); workers=[];
   clearInterval(timerInterval);
   running=false;
   startBtn.textContent=qty===1?'⬡ Generate Address':`⬡ Generate ${qty} Addresses`;
