@@ -806,14 +806,14 @@ function verifyAddress(){
     checksumNote = ' · EIP-55 checksum detected';
   }
   
-  result.innerHTML = \`
+  result.innerHTML = `
     <div style="display:grid;gap:.3rem">
-      <span style="color:var(--green)">✓ valid ethereum address\${checksumNote}</span>
+      <span style="color:var(--green)">&#10003; valid ethereum address ${checksumNote}</span>
       <span style="color:var(--muted)">// length: 42 chars (0x + 40 hex)</span>
       <span style="color:var(--muted)">// network: ethereum mainnet compatible</span>
       <span style="color:var(--muted)">// type: externally owned account (EOA) or contract</span>
-      <span style="color:var(--dim)">// note: this validates format only · balance check requires blockchain query</span>
-    </div>\`;
+      <span style="color:var(--dim)">// note: format only · balance check requires blockchain query</span>
+    </div>`;
 }
 
 function downloadOffline(){
