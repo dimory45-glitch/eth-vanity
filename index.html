@@ -884,7 +884,22 @@ patInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!running)startGen();
 
   // URL params autofill
   const pat=params.get('pattern'), md=params.get('mode');
-  const qt=parseInt(params.get('qty')||'0'), paid=params.get('paid')==='1';
+  const qt=parseInt(params.get('qty')||'0');
+  const sig=params.get('sig')||'';
+  // paid=1 is legacy — sig is the secure version
+  const paidLegacy=params.get('paid')==='1';
+  
+  // Verify HMAC signature via API
+  async function verifySig(pattern, mode, qty, sig) {
+    if(!sig) return false;
+    try {
+      const resp = await fetch(`${API_BASE}/verify-sig?pattern=${pattern}&mode=${mode}&qty=${qty}&sig=${sig}`);
+      const data = await resp.json();
+      return data.valid === true;
+    } catch(e) { return false; }
+  }
+  
+  const paid = sig ? await verifySig(pat, md, qt, sig) : paidLegacy;
   if(pat)patInput.value=pat;
   if(md){document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===md));mode=md;prefixTag.textContent=md==='suffix'?'…':'0x';document.getElementById('modeExample').innerHTML=MODE_EX[md]||MODE_EX.prefix;}
   if(qt){document.querySelectorAll('.qty-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.qty)===qt));qty=qt;}
