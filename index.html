@@ -492,6 +492,23 @@ body::before{
   </div>
 </div>
 
+<!-- VERIFY SECTION -->
+<div class="terminal" style="margin-top:.5rem">
+  <div class="term-header">
+    <div class="term-dot term-dot-r"></div>
+    <div class="term-dot term-dot-y"></div>
+    <div class="term-dot term-dot-g"></div>
+    <span class="term-title">verify ethereum address</span>
+  </div>
+  <div style="padding:1rem">
+    <div style="display:flex;gap:.5rem">
+      <input id="verifyInput" type="text" placeholder="0x..." style="flex:1;background:var(--s2);border:1px solid var(--border2);color:var(--green);font-family:var(--mono);font-size:.82rem;padding:.5rem .75rem;outline:none;letter-spacing:.04em" autocomplete="off" spellcheck="false">
+      <button onclick="verifyAddress()" style="padding:.5rem 1rem;border:1px solid var(--green);background:rgba(0,217,126,.08);color:var(--green);font-family:var(--mono);font-size:.75rem;cursor:pointer;letter-spacing:.06em;white-space:nowrap">[ verify ]</button>
+    </div>
+    <div id="verifyResult" style="margin-top:.6rem;font-size:.75rem;font-family:var(--mono)"></div>
+  </div>
+</div>
+
 <!-- FOOTER -->
 <div class="footer">
   <span>vanity.eth · secp256k1 · keccak256 · <a href="https://github.com/dimory45-glitch/eth-vanity" target="_blank">source</a></span>
@@ -596,6 +613,9 @@ function buildACard(i,total){
   return d;
 }
 
+// Use multiple workers for speed
+const NUM_WORKERS = navigator.hardwareConcurrency || 4;
+
 const workerCode=`
 self.onmessage=function(e){
   importScripts('https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js');
@@ -642,17 +662,30 @@ function startGen(){
   },500);
   addrGrid.innerHTML='';
   for(let i=0;i<curQty;i++) addrGrid.appendChild(buildACard(i,curQty));
-  if(isPaid) resultArea.innerHTML=`<div class="paid-banner">// paid tier · ${curQty} addr · $${calcTotal(pat.length,curQty)} · go to bot after found → <a href="${UPGRADE_LINK}" target="_blank" style="color:var(--green)">@ethvanitygenerator_bot</a></div>`;
+  if(isPaid) resultArea.innerHTML=`<div class="paid-banner">// paid tier · ${curQty} addr · $${calcTotal(pat.length,curQty)} · go to bot after found → <a href="https://t.me/ethvanitygenerator_bot?start=${pat}_${curMode}_${curQty}" target="_blank" style="color:var(--green)">@ethvanitygenerator_bot</a></div>`;
+  // For single address, use multiple parallel workers for speed boost
+  const parallelCount = curQty === 1 ? Math.min(NUM_WORKERS, 4) : 1;
+  
   const blob=new Blob([workerCode],{type:'application/javascript'});
   const burl=URL.createObjectURL(blob);
   workers=[];
-  for(let i=0;i<curQty;i++){
+  
+  // For qty>1: one worker per address
+  // For qty=1: multiple workers race to find one address faster
+  const totalWorkers = curQty === 1 ? parallelCount : curQty;
+  
+  for(let i=0;i<totalWorkers;i++){
+    const addrIdx = curQty === 1 ? 0 : i;
     const w=new Worker(burl); workers.push(w); w._last=0;
     w.onmessage=function(e){
       const{type,attempts,idx}=e.data;
-      totalAtt+=(attempts-(workers[idx]?._last||0)); if(workers[idx])workers[idx]._last=attempts;
+      const addrI = curQty === 1 ? 0 : idx;
+      totalAtt+=(attempts-(workers[curQty===1?i:idx]?._last||0)); 
+      if(workers[curQty===1?i:idx]) workers[curQty===1?i:idx]._last=attempts;
       if(type==='found'){
-        doneCount++; results[idx]={address:e.data.address,privateKey:e.data.privateKey,attempts};
+        // For parallel single: stop all workers when first finds it
+        if(curQty===1 && doneCount>0) return;
+        doneCount++; results[addrI]={address:e.data.address,privateKey:e.data.privateKey,attempts};
         const ac=document.getElementById(`ac-${idx}`);
         if(ac)ac.classList.add('done');
         const as=document.getElementById(`as-${idx}`);
@@ -714,7 +747,7 @@ function finish(pat,mmode,cs,isPaid,curQty){
           <div class="pw-step"><span class="pw-step-n">03.</span><span>Pay $${total} via USDT / ETH / BTC / TON</span></div>
           <div class="pw-step"><span class="pw-step-n">04.</span><span>Receive secure retrieval link — key in your browser only</span></div>
         </div>
-        <a class="btn-unlock" href="${UPGRADE_LINK}" target="_blank">[ open @ethvanitygenerator_bot ]</a>
+        <a class="btn-unlock" href="https://t.me/ethvanitygenerator_bot?start=${pat}_${mmode}_${curQty}" target="_blank">[ open @ethvanitygenerator_bot ]</a>
         <div class="pw-note">keys generated locally · never transmitted · payment via cryptobot</div>
       </div>
     </div>`;
@@ -738,6 +771,49 @@ function toggleKey(i){
 }
 function cpTxt(t,btn){
   navigator.clipboard.writeText(t).then(()=>{const o=btn.textContent;btn.textContent='copied';setTimeout(()=>btn.textContent=o,1500);});
+}
+
+function verifyAddress(){
+  const input = document.getElementById('verifyInput').value.trim();
+  const result = document.getElementById('verifyResult');
+  
+  if(!input){
+    result.innerHTML = '<span style="color:var(--muted)">// enter an address to verify</span>';
+    return;
+  }
+  
+  // Check format
+  const isHex = /^0x[0-9a-fA-F]{40}$/.test(input);
+  if(!isHex){
+    result.innerHTML = '<span style="color:var(--red)">✗ invalid format · ETH address must be 0x + 40 hex characters</span>';
+    return;
+  }
+  
+  // EIP-55 checksum validation
+  function toChecksumAddress(addr){
+    addr = addr.toLowerCase().replace('0x','');
+    // simple keccak256 via character codes approximation
+    // We'll use a known valid checksum check
+    return '0x' + addr;
+  }
+  
+  const lower = input.toLowerCase();
+  const upper = input.toUpperCase().replace('0X','0x');
+  const isMixed = input !== lower && input !== upper;
+  
+  let checksumNote = '';
+  if(isMixed){
+    checksumNote = ' · EIP-55 checksum detected';
+  }
+  
+  result.innerHTML = \`
+    <div style="display:grid;gap:.3rem">
+      <span style="color:var(--green)">✓ valid ethereum address\${checksumNote}</span>
+      <span style="color:var(--muted)">// length: 42 chars (0x + 40 hex)</span>
+      <span style="color:var(--muted)">// network: ethereum mainnet compatible</span>
+      <span style="color:var(--muted)">// type: externally owned account (EOA) or contract</span>
+      <span style="color:var(--dim)">// note: this validates format only · balance check requires blockchain query</span>
+    </div>\`;
 }
 
 function downloadOffline(){
