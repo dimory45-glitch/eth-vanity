@@ -311,6 +311,7 @@ body::before{
     <div class="topbar-links">
       <a class="topbar-link" href="https://github.com/dimory45-glitch/eth-vanity" target="_blank">github</a>
       <a class="topbar-link" href="https://t.me/ethvanitygenerator_bot" target="_blank">telegram</a>
+      <a class="topbar-link" href="#" onclick="downloadOffline();return false;">download offline</a>
     </div>
   </div>
   <div class="topbar-right">
@@ -739,6 +740,13 @@ function cpTxt(t,btn){
   navigator.clipboard.writeText(t).then(()=>{const o=btn.textContent;btn.textContent='copied';setTimeout(()=>btn.textContent=o,1500);});
 }
 
+function downloadOffline(){
+  const blob = new Blob([document.documentElement.outerHTML], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vanity-eth-offline.html';
+  a.click();
+}
 startBtn.addEventListener('click',()=>running?stopGen():startGen());
 patInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!running)startGen();});
 
