@@ -120,7 +120,7 @@ body::before{
 .hex-table .val .x{color:var(--red)}
 
 /* Mode */
-.mode-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem}
+.mode-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem}
 .mode-btn{
   padding:.5rem;background:var(--s2);border:1px solid var(--border);
   color:var(--muted);font-family:var(--mono);font-size:.72rem;
@@ -667,8 +667,7 @@ self.onmessage=function(e){
 function startGen(){
   const pat=patInput.value.trim();
   if(!pat){patInput.focus();return;}
-  const maskMode = curMode === 'mask';
-  if(maskMode ? !/^[0-9a-fA-F?]+$/i.test(pat) : !/^[0-9a-fA-F]+$/i.test(pat)){
+  if(mode === 'mask' ? !/^[0-9a-fA-F?]+$/i.test(pat) : !/^[0-9a-fA-F]+$/i.test(pat)){
     patInput.closest('.input-wrap').style.borderColor='var(--red)';
     setTimeout(()=>patInput.closest('.input-wrap').style.borderColor='',800); return;
   }
@@ -927,7 +926,10 @@ patInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!running)startGen();
     } catch(e) { return false; }
   }
   
-  const paid = sig ? await verifySig(pat, md, qt, sig) : paidLegacy;
+  let paid = paidLegacy;
+  if(sig) verifySig(pat, md, qt, sig).then(valid => {
+    if(valid) setupPaidSession(pat, md, qt);
+  });
   if(pat)patInput.value=pat;
   if(md){document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===md));mode=md;prefixTag.textContent=md==='suffix'?'…':'0x';document.getElementById('modeExample').innerHTML=MODE_EX[md]||MODE_EX.prefix;}
   if(qt){document.querySelectorAll('.qty-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.qty)===qt));qty=qt;}
